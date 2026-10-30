@@ -163,6 +163,15 @@ pub const VIBE_BASH_MATCH: &str = "bash";
 pub const DSH_DIR: &str = ".dsh";
 /// Environment variable that overrides the DSH home directory.
 pub const DSH_HOME_ENV: &str = "DSH_HOME";
+/// Subdirectory of `$DSH_HOME` holding one directory per DSH profile.
+pub const DSH_PROFILES_SUBDIR: &str = "profiles";
+/// Package name the DSH cordis plugin is installed under, in both
+/// `<profile>/node_modules/<name>/` and the `id`/`name` fields of its
+/// `cordis.patch.yml` insert entry.
+pub const DSH_PLUGIN_NAME: &str = "rtk-rewrite";
+/// The DSH profile's own patch layer file every bundle and this plugin's
+/// insert entry are appended to.
+pub const DSH_PATCH_FILE: &str = "cordis.patch.yml";
 
 #[cfg(all(test, feature = "engine"))]
 mod tests {
