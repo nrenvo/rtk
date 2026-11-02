@@ -15,6 +15,7 @@ import RtkDshPlugin, {
   DEFAULT_COMMANDS,
   apply,
   askRtk,
+  canSkipRewrite,
   defaultBypassPath,
   defaultLogPath,
   insertedSubcommands,
@@ -248,6 +249,19 @@ test("DEFAULT_COMMANDS excludes host-sensitive aliases", () => {
   }
 })
 
+test("canSkipRewrite: skips only known simple standalone commands", () => {
+  for (const command of ["echo hello", "pwd", "Get-ChildItem foo", "printf %s hello"]) {
+    assert.equal(canSkipRewrite(command), true, command)
+  }
+  for (const command of [
+    "git status", "echo ok && git status", "cd repo && grep foo bar",
+    "echo $(git status)", "echo 'hello'", "echo hello | cat",
+    "echo hello >out", "echo hello; git status", "unknown-tool arg",
+  ]) {
+    assert.equal(canSkipRewrite(command), false, command)
+  }
+})
+
 // ── apply() against a fake cordis context ───────────────────────────────────
 
 const CORDIS_ORIGINAL = Symbol.for("cordis.original")
@@ -320,6 +334,18 @@ test("apply: leaves an unrecognized command's execute call alone (exit 1)", asyn
   apply(ctx, { bin: mockBin() })
   await target.execute({ command: "no rewrite" })
   assert.deepEqual(calls, ["no rewrite"])
+})
+
+test("apply: simple pass-through commands do not spawn the rewrite binary", async () => {
+  const calls = []
+  const { proxy, target } = makeFakeShell(async (spec) => {
+    calls.push(spec.command)
+    return { ok: true }
+  })
+  const { ctx } = makeFakeCtx(proxy)
+  apply(ctx, { bin: mockBin() })
+  await target.execute({ command: "echo hello" })
+  assert.deepEqual(calls, ["echo hello"])
 })
 
 test("apply: a non-string spec.command is passed straight through", async () => {

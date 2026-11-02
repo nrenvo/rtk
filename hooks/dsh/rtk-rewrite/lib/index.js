@@ -107,6 +107,13 @@ const RTK_TOKENS = new Set(["rtk", "rtk.exe"])
 /** Shell operators tokenized as their own tokens; everything else splits on whitespace. */
 const OPERATOR_CHARS = new Set(["&", "|", ";"])
 
+// Keep this list deliberately small. Unknown heads go to Rust so new binary
+// versions can still rewrite them. These builtins are not rewrite targets.
+const SIMPLE_PASS_THROUGH = new Set([
+  "echo", "printf", "pwd", "cd", "true", "false", "sleep", "clear",
+  "Get-ChildItem", "Write-Output", "Write-Host",
+])
+
 /**
  * Splits a shell command line into tokens, treating `&&`, `||`, `;`, `|`,
  * and `&` as their own tokens (each operator character its own token when
@@ -161,6 +168,18 @@ export function tokens(cmd) {
   }
   flush()
   return out
+}
+
+/**
+ * Skip only familiar standalone commands. Unknown commands may match filters
+ * added in later binary versions, so they still go through Rust.
+ * Shell operators, expansions and wrappers may hide another command.
+ */
+export function canSkipRewrite(command) {
+  const trimmed = command.trim()
+  if (/[;&|()<>`$'"\\\r\n]/.test(trimmed)) return false
+  const head = trimmed.split(/\s/, 1)[0]
+  return SIMPLE_PASS_THROUGH.has(head)
 }
 
 /**
@@ -362,6 +381,7 @@ export function apply(ctx, config) {
       }
 
       const command = spec.command
+      if (canSkipRewrite(command)) return original.call(target, spec, ...rest)
       const rewritten = await askRtk(bin, command, timeoutMs)
       if (!rewritten || rewritten === command) {
         return original.call(target, spec, ...rest)
